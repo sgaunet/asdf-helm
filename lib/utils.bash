@@ -143,7 +143,7 @@ list_all_versions() {
 	list_github_tags
 }
 
-# Validate semantic version format
+# Validate version format (semantic version or "latest")
 # Arguments:
 #   $1 - Version string to validate
 # Returns:
@@ -151,12 +151,46 @@ list_all_versions() {
 validate_version() {
 	local version="$1"
 
+	# Accept "latest" as a special keyword
+	if [[ "$version" == "latest" ]]; then
+		return 0
+	fi
+
 	# Check basic semantic version pattern
 	if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?(\+[a-zA-Z0-9.]+)?$ ]]; then
 		return 1
 	fi
 
 	return 0
+}
+
+# Resolve "latest" version to actual latest stable version
+# Arguments:
+#   $1 - Version string (may be "latest" or actual version)
+# Returns:
+#   Actual version string to stdout
+resolve_version() {
+	local version="$1"
+
+	# If not "latest", return as-is
+	if [[ "$version" != "latest" ]]; then
+		echo "$version"
+		return 0
+	fi
+
+	debug_log "Resolving 'latest' version..."
+
+	# Get the latest stable version
+	local latest_version
+	if latest_version=$(list_all_versions | sort_versions | tail -n1); then
+		if [[ -n "$latest_version" ]]; then
+			debug_log "Resolved 'latest' to version: $latest_version"
+			echo "$latest_version"
+			return 0
+		fi
+	fi
+
+	fail "Could not determine latest version. Please specify a specific version."
 }
 
 # ============================================================================
@@ -259,6 +293,10 @@ download_release() {
 		fail "Invalid version format: $version"
 	fi
 
+	# Resolve "latest" to actual version
+	version=$(resolve_version "$version")
+	debug_log "Using version: $version"
+
 	os="$(get_os)"
 	arch="$(get_arch)"
 
@@ -320,6 +358,8 @@ install_version() {
 		fail "Invalid version format: $version"
 	fi
 
+	# Resolve "latest" to actual version
+	version=$(resolve_version "$version")
 	debug_log "Installing $TOOL_NAME $version to $install_path"
 
 	(
