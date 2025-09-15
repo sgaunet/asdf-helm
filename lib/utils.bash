@@ -180,14 +180,21 @@ resolve_version() {
 
 	debug_log "Resolving 'latest' version..."
 
-	# Get the latest stable version
+	# Get the latest stable version (prefer non-prerelease versions)
 	local latest_version
-	if latest_version=$(list_all_versions | sort_versions | tail -n1); then
-		if [[ -n "$latest_version" ]]; then
-			debug_log "Resolved 'latest' to version: $latest_version"
-			echo "$latest_version"
-			return 0
-		fi
+
+	# First try to get latest stable (non-prerelease) version
+	latest_version=$(list_all_versions | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort_versions | tail -n1)
+
+	# If no stable version found, fall back to any version
+	if [[ -z "$latest_version" ]]; then
+		latest_version=$(list_all_versions | sort_versions | tail -n1)
+	fi
+
+	if [[ -n "$latest_version" ]]; then
+		debug_log "Resolved 'latest' to version: $latest_version"
+		echo "$latest_version"
+		return 0
 	fi
 
 	fail "Could not determine latest version. Please specify a specific version."
