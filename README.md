@@ -1,6 +1,6 @@
 # asdf-helm
 
-[![Plugin Test](https://github.com/sylvain/asdf-helm/actions/workflows/build.yml/badge.svg)](https://github.com/sylvain/asdf-helm/actions/workflows/build.yml)
+[![Plugin Test](https://github.com/sgaunet/asdf-helm/actions/workflows/build.yml/badge.svg)](https://github.com/sgaunet/asdf-helm/actions/workflows/build.yml)
 
 [Helm](https://helm.sh/) plugin for the [asdf version manager](https://asdf-vm.com).
 
