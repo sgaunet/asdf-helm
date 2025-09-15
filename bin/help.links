@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+
+# Display useful links and resources
+
+cat <<EOF
+asdf-helm Plugin - Useful Links
+
+DOCUMENTATION:
+
+  Helm Documentation:
+    https://helm.sh/docs/
+
+  Helm GitHub Repository:
+    https://github.com/helm/helm
+
+  Plugin Repository:
+    https://github.com/sgaunet/asdf-helm
+
+  asdf Documentation:
+    https://asdf-vm.com
+
+GETTING STARTED:
+
+  Helm Quick Start:
+    https://helm.sh/docs/intro/quickstart/
+
+  Helm Installation Guide:
+    https://helm.sh/docs/intro/install/
+
+  Helm Usage Guide:
+    https://helm.sh/docs/intro/using_helm/
+
+  Helm Chart Guide:
+    https://helm.sh/docs/chart_template_guide/
+
+EXAMPLES & TUTORIALS:
+
+  Helm Charts:
+    https://artifacthub.io/
+
+  Chart Best Practices:
+    https://helm.sh/docs/chart_best_practices/
+
+  Community Charts:
+    https://github.com/helm/charts
+
+SUPPORT:
+
+  Helm Discussions:
+    https://github.com/helm/helm/discussions
+
+  Helm Issues:
+    https://github.com/helm/helm/issues
+
+  Plugin Issues:
+    https://github.com/sgaunet/asdf-helm/issues
+
+  asdf Issues:
+    https://github.com/asdf-vm/asdf/issues
+
+CONTRIBUTING:
+
+  Contributing to Helm:
+    https://github.com/helm/helm/blob/main/CONTRIBUTING.md
+
+  Contributing to Plugin:
+    See README.md in the plugin repository
+EOF

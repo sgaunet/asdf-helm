@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+
+# Display plugin overview and basic usage information
+
+cat <<EOF
+asdf-helm Plugin
+
+Helm is a package manager for Kubernetes that helps you manage Kubernetes applications.
+
+Plugin repository: https://github.com/sgaunet/asdf-helm
+Helm repository:   https://github.com/helm/helm
+Helm website:      https://helm.sh
+
+BASIC USAGE:
+
+  Install the plugin:
+    asdf plugin add helm
+    # or
+    asdf plugin add helm https://github.com/sgaunet/asdf-helm.git
+
+  Install a version:
+    asdf install helm latest      # Install latest stable version
+    asdf install helm 3.16.4       # Install specific version
+
+  Set a version:
+    asdf global helm latest        # Set globally
+    asdf local helm 3.16.4         # Set for current directory
+
+  List versions:
+    asdf list helm                 # List installed versions
+    asdf list-all helm             # List all available versions
+
+ENVIRONMENT VARIABLES:
+
+  ASDF_HELM_DEBUG=1               Enable debug output
+  ASDF_HELM_MAX_RETRIES=3         Max retry attempts for network operations
+  ASDF_HELM_RETRY_DELAY=2         Delay in seconds between retries
+  GITHUB_API_TOKEN=<token>        GitHub token for higher API rate limits
+
+TROUBLESHOOTING:
+
+  Enable debug mode:
+    export ASDF_HELM_DEBUG=1
+    asdf install helm latest
+
+  If you encounter rate limiting:
+    export GITHUB_API_TOKEN=your_github_token
+    asdf install helm latest
+
+For more help, see:
+  https://github.com/sgaunet/asdf-helm
+  https://asdf-vm.com
+EOF

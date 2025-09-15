@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+
+# Exit on error, undefined variable, or pipe failure
+set -euo pipefail
+
+# ============================================================================
+# Script Setup
+# ============================================================================
+
+# Get the directory of this script and the plugin root
+current_script_path=${BASH_SOURCE[0]}
+plugin_dir=$(dirname "$(dirname "$current_script_path")")
+
+# Source shared utility functions
+# shellcheck source=./lib/utils.bash
+source "${plugin_dir}/lib/utils.bash"
+
+# ============================================================================
+# Environment Configuration
+# ============================================================================
+
+# Set Helm-specific environment variables
+# This script is called by asdf before executing the tool
+main() {
+	# Get the installation path
+	local install_path="${ASDF_INSTALL_PATH:-}"
+
+	if [[ -z "$install_path" ]]; then
+		debug_log "ASDF_INSTALL_PATH not set, exec-env running in check mode"
+		return 0
+	fi
+
+	debug_log "Setting environment for $TOOL_NAME at $install_path"
+
+	# Set Helm-specific environment variables
+	# These are optional but enhance functionality
+
+	# Set default Helm configuration directory
+	if [[ -z "${HELM_CONFIG_HOME:-}" ]]; then
+		export HELM_CONFIG_HOME="${HOME}/.config/helm"
+		debug_log "Set Helm config home to $HELM_CONFIG_HOME"
+	fi
+
+	# Set default Helm cache directory
+	if [[ -z "${HELM_CACHE_HOME:-}" ]]; then
+		export HELM_CACHE_HOME="${HOME}/.cache/helm"
+		debug_log "Set Helm cache home to $HELM_CACHE_HOME"
+	fi
+
+	# Set default Helm data directory
+	if [[ -z "${HELM_DATA_HOME:-}" ]]; then
+		export HELM_DATA_HOME="${HOME}/.local/share/helm"
+		debug_log "Set Helm data home to $HELM_DATA_HOME"
+	fi
+
+	# Enable debug mode for Helm if ASDF_HELM_DEBUG is set
+	if [[ "${ASDF_HELM_DEBUG:-0}" == "1" ]]; then
+		export HELM_DEBUG=1
+		debug_log "Enabled debug mode for Helm"
+	fi
+
+	# Set default registry configuration if not set
+	if [[ -z "${HELM_REGISTRY_CONFIG:-}" ]]; then
+		export HELM_REGISTRY_CONFIG="${HELM_CONFIG_HOME}/registry/config.json"
+		debug_log "Set Helm registry config to $HELM_REGISTRY_CONFIG"
+	fi
+
+	# Set default repository configuration if not set
+	if [[ -z "${HELM_REPOSITORY_CONFIG:-}" ]]; then
+		export HELM_REPOSITORY_CONFIG="${HELM_CONFIG_HOME}/repositories.yaml"
+		debug_log "Set Helm repository config to $HELM_REPOSITORY_CONFIG"
+	fi
+
+	# Set default repository cache if not set
+	if [[ -z "${HELM_REPOSITORY_CACHE:-}" ]]; then
+		export HELM_REPOSITORY_CACHE="${HELM_CACHE_HOME}/repository"
+		debug_log "Set Helm repository cache to $HELM_REPOSITORY_CACHE"
+	fi
+
+	debug_log "Helm environment configuration completed"
+}
+
+# ============================================================================
+# Script Execution
+# ============================================================================
+
+# Run main function
+main "$@"
