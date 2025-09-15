@@ -19,6 +19,9 @@ readonly RETRY_DELAY="${ASDF_HELM_RETRY_DELAY:-2}"
 # Debug mode - set ASDF_HELM_DEBUG=1 to enable verbose logging
 readonly DEBUG="${ASDF_HELM_DEBUG:-0}"
 
+# Skip checksum verification - set ASDF_HELM_SKIP_CHECKSUM=1 to skip checksum verification
+readonly SKIP_CHECKSUM="${ASDF_HELM_SKIP_CHECKSUM:-0}"
+
 # ============================================================================
 # Logging Functions
 # ============================================================================
@@ -273,12 +276,45 @@ verify_checksum() {
 	local checksum_url="https://get.helm.sh/${filename}.sha256sum"
 	local checksum_file="${file_path}.sha256sum"
 
+	# Check if checksum verification should be skipped
+	if [[ "$SKIP_CHECKSUM" == "1" ]]; then
+		info "Skipping checksum verification (ASDF_HELM_SKIP_CHECKSUM=1)"
+		return 0
+	fi
+
 	info "Verifying checksum for $filename..."
+	debug_log "Checksum URL: $checksum_url"
+	debug_log "Checksum file path: $checksum_file"
 
 	# Download checksum file
 	build_curl_opts
-	if ! curl_with_retry "${curl_opts[@]}" -o "$checksum_file" "$checksum_url" 2>/dev/null; then
-		warn "Checksum file not available for version $version. Skipping verification."
+	debug_log "Downloading checksum file with curl options: ${curl_opts[*]}"
+
+	# Try to download the checksum file
+	local download_success=false
+	if curl_with_retry "${curl_opts[@]}" -o "$checksum_file" "$checksum_url" 2>/dev/null; then
+		download_success=true
+		debug_log "Checksum file downloaded successfully from get.helm.sh"
+	else
+		debug_log "Failed to download checksum from get.helm.sh, trying GitHub releases..."
+
+		# Fallback: try GitHub releases URL
+		local github_checksum_url="$GH_REPO/releases/download/v${version}/${filename}.sha256sum"
+		debug_log "Trying GitHub URL: $github_checksum_url"
+
+		if curl_with_retry "${curl_opts[@]}" -o "$checksum_file" "$github_checksum_url" 2>/dev/null; then
+			download_success=true
+			debug_log "Checksum file downloaded successfully from GitHub releases"
+		else
+			debug_log "Failed to download checksum from GitHub releases as well"
+		fi
+	fi
+
+	if [[ "$download_success" != "true" ]]; then
+		warn "Checksum file not available for version $version. Tried:"
+		warn "  - $checksum_url"
+		warn "  - $GH_REPO/releases/download/v${version}/${filename}.sha256sum"
+		warn "Skipping checksum verification."
 		rm -f "$checksum_file"
 		return 0
 	fi
@@ -286,32 +322,99 @@ verify_checksum() {
 	# Extract checksum (first field in the .sha256sum file)
 	local expected_checksum
 	expected_checksum=$(cat "$checksum_file" 2>/dev/null | awk '{print $1}')
+	debug_log "Checksum file contents: $(cat "$checksum_file" 2>/dev/null || echo 'Failed to read file')"
+	debug_log "Expected checksum: $expected_checksum"
 
 	if [[ -z "$expected_checksum" ]]; then
-		warn "No checksum found in file. Skipping verification."
+		warn "No checksum found in file $checksum_file. Skipping verification."
+		debug_log "Checksum file size: $(wc -c < "$checksum_file" 2>/dev/null || echo 'unknown') bytes"
 		rm -f "$checksum_file"
 		return 0
 	fi
 
 	# Calculate actual checksum
 	local actual_checksum
+	local sha_tool="unknown"
+
+	debug_log "Detecting available SHA256 tools..."
+	debug_log "Platform: $(uname -s)"
+	debug_log "PATH: $PATH"
+
+	# Try sha256sum first (common on Linux)
 	if command -v sha256sum >/dev/null 2>&1; then
-		actual_checksum=$(sha256sum "$file_path" | awk '{print $1}')
-	elif command -v shasum >/dev/null 2>&1; then
-		actual_checksum=$(shasum -a 256 "$file_path" | awk '{print $1}')
-	else
-		warn "No SHA256 tool available. Skipping checksum verification."
+		sha_tool="sha256sum"
+		debug_log "Found sha256sum at: $(which sha256sum)"
+		if actual_checksum=$(sha256sum "$file_path" 2>/dev/null | awk '{print $1}'); then
+			debug_log "Successfully calculated checksum using sha256sum"
+		else
+			warn "sha256sum command failed, trying alternative..."
+			sha_tool="unknown"
+		fi
+	fi
+
+	# Try shasum if sha256sum not available or failed (common on macOS)
+	if [[ "$sha_tool" == "unknown" ]] && command -v shasum >/dev/null 2>&1; then
+		sha_tool="shasum -a 256"
+		debug_log "Found shasum at: $(which shasum)"
+		if actual_checksum=$(shasum -a 256 "$file_path" 2>/dev/null | awk '{print $1}'); then
+			debug_log "Successfully calculated checksum using shasum -a 256"
+		else
+			warn "shasum command failed, trying alternative..."
+			sha_tool="unknown"
+		fi
+	fi
+
+	# Try openssl as fallback
+	if [[ "$sha_tool" == "unknown" ]] && command -v openssl >/dev/null 2>&1; then
+		sha_tool="openssl dgst -sha256"
+		debug_log "Found openssl at: $(which openssl)"
+		if actual_checksum=$(openssl dgst -sha256 "$file_path" 2>/dev/null | awk '{print $2}'); then
+			debug_log "Successfully calculated checksum using openssl"
+		else
+			warn "openssl command failed"
+			sha_tool="unknown"
+		fi
+	fi
+
+	# If no tool worked, skip verification
+	if [[ "$sha_tool" == "unknown" ]] || [[ -z "$actual_checksum" ]]; then
+		warn "No working SHA256 tool available. Tried: sha256sum, shasum, openssl"
+		debug_log "Available tools: $(which sha256sum shasum openssl md5sum 2>/dev/null || echo 'none found')"
+		debug_log "File exists: $(test -f "$file_path" && echo 'yes' || echo 'no')"
+		debug_log "File readable: $(test -r "$file_path" && echo 'yes' || echo 'no')"
 		rm -f "$checksum_file"
 		return 0
 	fi
 
+	debug_log "SHA tool used: $sha_tool"
+	debug_log "Calculated checksum: $actual_checksum"
+	debug_log "File being verified: $file_path (size: $(wc -c < "$file_path" 2>/dev/null || echo 'unknown') bytes)"
+
 	# Compare checksums
+	debug_log "Comparing checksums:"
+	debug_log "  Expected: $expected_checksum"
+	debug_log "  Actual:   $actual_checksum"
 	if [[ "$expected_checksum" != "$actual_checksum" ]]; then
 		rm -f "$checksum_file"
+		echo "ERROR: Checksum verification failed for $filename" >&2
+		echo "  Expected: $expected_checksum" >&2
+		echo "  Actual:   $actual_checksum" >&2
+		echo "  Tool used: $sha_tool" >&2
+		echo "  File: $file_path" >&2
+		echo "  File size: $(wc -c < "$file_path" 2>/dev/null || echo 'unknown') bytes" >&2
+		echo "" >&2
+		echo "This could indicate:" >&2
+		echo "  - Network corruption during download" >&2
+		echo "  - File system issues" >&2
+		echo "  - Security compromise" >&2
+		echo "" >&2
+		echo "You can skip checksum verification by setting: export ASDF_HELM_SKIP_CHECKSUM=1" >&2
+		echo "However, this is NOT recommended for security reasons." >&2
 		fail "Checksum verification failed for $filename"
 	fi
 
 	info "Checksum verified successfully"
+	debug_log "Checksum verification completed successfully for $filename"
 	rm -f "$checksum_file"
 	return 0
 }

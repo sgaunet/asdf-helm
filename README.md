@@ -73,6 +73,7 @@ The plugin supports several environment variables for customization:
 | `ASDF_HELM_DEBUG` | `0` | Enable debug output for troubleshooting |
 | `ASDF_HELM_MAX_RETRIES` | `3` | Maximum retry attempts for network operations |
 | `ASDF_HELM_RETRY_DELAY` | `2` | Delay in seconds between retries |
+| `ASDF_HELM_SKIP_CHECKSUM` | `0` | Skip checksum verification (NOT recommended) |
 | `GITHUB_API_TOKEN` | - | GitHub token for higher API rate limits |
 
 ## Features
