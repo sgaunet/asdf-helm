@@ -420,7 +420,7 @@ install_version() {
 		fi
 
 		# Test the installation
-		if ! "$install_path/$tool_cmd" --version >/dev/null 2>&1; then
+		if ! "$install_path/$tool_cmd" version >/dev/null 2>&1; then
 			fail "Installation verification failed. Binary may be incompatible with your system."
 		fi
 

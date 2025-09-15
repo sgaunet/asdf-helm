@@ -99,7 +99,8 @@ post_install_validation() {
 		debug_log "Installed version output: $installed_version"
 
 		# Extract version number from output
-		if echo "$installed_version" | grep -q "$version"; then
+		# Handle both v-prefixed and non-prefixed versions
+		if echo "$installed_version" | grep -q "$version" || echo "$installed_version" | grep -q "v$version"; then
 			info "Version validation successful"
 			return 0
 		else
